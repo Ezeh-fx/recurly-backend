@@ -19,6 +19,7 @@ import { env } from "./config/env.js";
 import { isDatabaseConnected } from "./config/database.js";
 import { errorHandler, AppError } from "./middleware/error-handler.js";
 import { apiRateLimiter } from "./middleware/rate-limit.js";
+import { logger } from "./utils/logger.js";
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
@@ -55,6 +56,7 @@ app.use((request: Request, _response: Response, next: NextFunction) => {
 app.use(hpp());
 app.use(
   pinoHttp({
+    logger,
     redact: [
       "req.headers.authorization",
       "req.headers.cookie",

@@ -3,6 +3,13 @@ import { z } from "zod";
 
 dotenv.config();
 
+const ipv4Address = z
+  .string()
+  .regex(
+    /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/,
+    "must be a valid IPv4 address",
+  );
+
 const environmentSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -10,6 +17,12 @@ const environmentSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(5000),
   MONGODB_URI: z.string().trim().min(1, "MONGODB_URI is required"),
   CORS_ORIGINS: z.string().trim().default("http://localhost:8081"),
+  DNS_SERVERS: z
+    .string()
+    .trim()
+    .default("8.8.8.8,1.1.1.1")
+    .transform((value) => value.split(",").map((server) => server.trim()))
+    .pipe(z.array(ipv4Address).min(1).max(3)),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
