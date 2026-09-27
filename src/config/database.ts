@@ -1,26 +1,23 @@
-import dns from 'node:dns';
 import mongoose from 'mongoose';
+import logger from './logger';
+import { env } from './env';
 
-import { env } from './env.js';
-
-mongoose.set('strictQuery', true);
-mongoose.set('sanitizeFilter', true);
-
-export async function connectDatabase(): Promise<void> {
-  dns.setServers(env.DNS_SERVERS);
-
-  await mongoose.connect(env.MONGODB_URI, {
-    maxPoolSize: env.DB_MAX_POOL_SIZE,
-    serverSelectionTimeoutMS: env.DB_SERVER_SELECTION_TIMEOUT_MS,
-  });
-}
-
-export async function disconnectDatabase(): Promise<void> {
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.disconnect();
+export const connectDB = async () => {
+  try {
+    await mongoose.connect(env.MONGODB_URI);
+    logger.info('MongoDB connected successfully');
+  } catch (error) {
+    logger.error({ err: error }, 'MongoDB connection error');
+    throw error;
   }
-}
+};
 
-export function isDatabaseConnected(): boolean {
-  return mongoose.connection.readyState === 1;
-}
+export const disconnectDB = async () => {
+  try {
+    await mongoose.disconnect();
+    logger.info('MongoDB disconnected successfully');
+  } catch (error) {
+    logger.error({ err: error }, 'MongoDB disconnection error');
+    throw error;
+  }
+};

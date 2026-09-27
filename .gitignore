@@ -1,8 +1,38 @@
-.env
-.env.*
-!.env.example
+# Dependencies
 node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.preview
+.env.production
+.env.staging
+.env.test
+!.env.example
+
+# Build output
 dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+build/
+
+# Testing
+coverage/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pid
+*.seed
+*.pid.lock

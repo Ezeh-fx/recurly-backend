@@ -1,91 +1,23 @@
-import http from "node:http";
+import dotenv from 'dotenv';
 
-import app from "./app.js";
-import { connectDatabase, disconnectDatabase } from "./config/database.js";
-import { env } from "./config/env.js";
-import { logger } from "./utils/logger.js";
+dotenv.config();
 
-let server: http.Server | undefined;
-let isShuttingDown = false;
+import { env } from './config/env';
+import { connectDB } from './config/database';
+import logger from './config/logger';
 
-function errorName(error: unknown): string {
-  return error instanceof Error ? error.name : "UnknownError";
-}
-
-async function cleanup(exitCode: 0 | 1, reason: string): Promise<void> {
-  if (isShuttingDown) {
-    return;
-  }
-
-  isShuttingDown = true;
-  logger.info({ reason }, "Cleanup started");
-
+const startServer = async () => {
   try {
-    if (server?.listening === true) {
-      const activeServer = server;
-
-      await new Promise<void>((resolve, reject) => {
-        activeServer.close((error) => {
-          if (error !== undefined) {
-            reject(error);
-            return;
-          }
-
-          resolve();
-        });
-      });
-    }
-
-    await disconnectDatabase();
-    logger.info({ exitCode }, "Cleanup completed");
-    process.exitCode = exitCode;
+    await connectDB();
+    
+    logger.info(`Starting server in ${env.NODE_ENV} mode on port ${env.PORT}`);
+    
+    // TODO: Initialize Express app and routes here
+    
   } catch (error) {
-    logger.error({ errorName: errorName(error) }, "Shutdown failed");
-    process.exitCode = 1;
+    logger.error({ err: error }, 'Failed to start server');
+    process.exit(1);
   }
-}
+};
 
-async function shutdown(signal: NodeJS.Signals): Promise<void> {
-  await cleanup(0, signal);
-}
-
-async function startServer(): Promise<void> {
-  try {
-    await connectDatabase();
-
-    server = app.listen(env.PORT, () => {
-      logger.info(
-        { port: env.PORT, environment: env.NODE_ENV },
-        "Server started",
-      );
-    });
-
-    server.on("error", (error) => {
-      logger.fatal({ errorName: errorName(error) }, "Server failed to listen");
-      void cleanup(1, "server-error");
-    });
-  } catch (error) {
-    logger.fatal({ errorName: errorName(error) }, "Server startup failed");
-    await cleanup(1, "startup-failure");
-  }
-}
-
-process.once("SIGINT", () => {
-  void shutdown("SIGINT");
-});
-
-process.once("SIGTERM", () => {
-  void shutdown("SIGTERM");
-});
-
-process.once("uncaughtException", (error) => {
-  logger.fatal({ errorName: errorName(error) }, "Uncaught exception");
-  void cleanup(1, "uncaught-exception");
-});
-
-process.once("unhandledRejection", (reason) => {
-  logger.fatal({ errorName: errorName(reason) }, "Unhandled promise rejection");
-  void cleanup(1, "unhandled-rejection");
-});
-
-void startServer();
+startServer();

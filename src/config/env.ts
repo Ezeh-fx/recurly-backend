@@ -1,55 +1,46 @@
-import dotenv from "dotenv";
-import { z } from "zod";
+import { z } from 'zod';
 
-dotenv.config();
-
-const ipv4Address = z
-  .string()
-  .regex(
-    /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/,
-    "must be a valid IPv4 address",
-  );
-
-const environmentSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(5000),
-  MONGODB_URI: z.string().trim().min(1, "MONGODB_URI is required"),
-  CORS_ORIGINS: z.string().trim().default("http://localhost:8081"),
-  DNS_SERVERS: z
-    .string()
-    .trim()
-    .default("8.8.8.8,1.1.1.1")
-    .transform((value) => value.split(",").map((server) => server.trim()))
-    .pipe(z.array(ipv4Address).min(1).max(3)),
-  LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
-    .default("info"),
-  DB_MAX_POOL_SIZE: z.coerce.number().int().min(1).max(100).default(10),
-  DB_SERVER_SELECTION_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(1_000)
-    .max(120_000)
-    .default(10_000),
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.string().default('3000'),
+  
+  // Database
+  MONGODB_URI: z.string().url(),
+  
+  // JWT
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  
+  // OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  APPLE_CLIENT_ID: z.string().optional(),
+  
+  // Email
+  EMAIL_PROVIDER_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+  
+  // Expo Push Notifications
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+  
+  // CORS
+  CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:8081'),
+  
+  // Logging
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 
-const parsedEnvironment = environmentSchema.safeParse(process.env);
+const validateEnv = () => {
+  const env = envSchema.safeParse(process.env);
 
-if (!parsedEnvironment.success) {
-  const issues = parsedEnvironment.error.issues
-    .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-    .join("; ");
+  if (!env.success) {
+    console.error('❌ Invalid environment variables:');
+    console.error(env.error.issues);
+    process.exit(1);
+  }
 
-  throw new Error(`Invalid environment configuration: ${issues}`);
-}
+  return env.data;
+};
 
-const environment = parsedEnvironment.data;
-
-export const env = {
-  ...environment,
-  CORS_ORIGINS: environment.CORS_ORIGINS.split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0),
-} as const;
+export const env = validateEnv();
