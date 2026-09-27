@@ -2,8 +2,8 @@ import logger from '../config/logger';
 
 export const logError = (error: Error, context?: Record<string, unknown>) => {
   logger.error({
-    err: error,
     ...context,
+    err: error,
   }, error.message);
 };
 

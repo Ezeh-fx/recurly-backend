@@ -1,10 +1,10 @@
 import pino from 'pino';
+import { env } from './env';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-const logLevel = process.env.LOG_LEVEL || 'info';
+const isDevelopment = env.NODE_ENV === 'development';
 
 export const logger = pino({
-  level: logLevel,
+  level: env.LOG_LEVEL,
   ...(isDevelopment && {
     transport: {
       target: 'pino-pretty',
@@ -21,7 +21,7 @@ export const logger = pino({
     res: pino.stdSerializers.res,
   },
   base: {
-    env: process.env.NODE_ENV || 'development',
+    env: env.NODE_ENV,
   },
 });
 

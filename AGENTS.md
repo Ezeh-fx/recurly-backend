@@ -114,6 +114,10 @@ billingCycle, nextRenewalDate, status }`.
 - If a User with that email already exists (e.g. signed up via
   email/password first), link the new provider into
   `authProviders` rather than creating a duplicate account.
+  **Security requirement**: A verified email claim alone does not authorize
+  linking to an existing account. Only link if the provider is authoritative
+  for the email address (e.g., Gmail addresses for Google), or require proof
+  of control through reauthentication or another challenge before linking.
 - If no User exists, create one with `passwordHash: null`.
 
 ### Sessions
