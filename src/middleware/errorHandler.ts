@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../config/logger';
+import { env } from '../config/env';
 
 export class AppError extends Error {
   statusCode: number;
@@ -14,11 +15,15 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (
-  err: Error | AppError,
+  err: unknown,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   if (err instanceof AppError) {
     logger.error({
       code: err.code,
@@ -37,17 +42,27 @@ export const errorHandler = (
   }
 
   // Generic error handler
+  const safeMessage = err instanceof Error
+    ? err.message
+    : typeof err === 'string'
+      ? err
+      : err && typeof err === 'object' && 'message' in err
+        ? String(err.message)
+        : 'An unexpected error occurred';
+
+  const safeStack = err instanceof Error ? err.stack : undefined;
+
   logger.error({
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    message: safeMessage,
+    stack: env.NODE_ENV === 'development' ? safeStack : undefined,
     url: req.url,
     method: req.method,
   }, 'Unhandled error');
 
   const statusCode = 500;
   const code = 'INTERNAL_SERVER_ERROR';
-  const message = process.env.NODE_ENV === 'development'
-    ? err.message
+  const message = env.NODE_ENV === 'development'
+    ? safeMessage
     : 'An unexpected error occurred';
 
   res.status(statusCode).json({
