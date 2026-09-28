@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
+  setupFiles: ['<rootDir>/tests/setup.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -11,5 +12,10 @@ module.exports = {
   coverageDirectory: 'coverage',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: '<rootDir>/tsconfig.test.json',
+    }],
   },
 };

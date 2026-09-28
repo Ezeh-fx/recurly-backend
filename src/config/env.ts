@@ -5,7 +5,7 @@ const envSchema = z.object({
   PORT: z.string().default('3000'),
   
   // Database
-  MONGODB_URI: z.string().url(),
+  MONGODB_URI: z.string().url().default('mongodb://localhost:27017/test-subtrack'),
   
   // JWT
   JWT_ACCESS_SECRET: z.string().min(32),
@@ -24,11 +24,39 @@ const envSchema = z.object({
   // Expo Push Notifications
   EXPO_ACCESS_TOKEN: z.string().optional(),
   
-  // CORS
-  CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:8081'),
+  // CORS (comma-separated list of allowed origins)
+  CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:8081,exp://localhost:8081'),
+  
+  // DNS (comma-separated list of DNS servers for development)
+  DNS_SERVERS: z.string().optional(),
   
   // Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === 'production' && data.MONGODB_URI === 'mongodb://localhost:27017/test-subtrack') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'MONGODB_URI must be explicitly provided in production',
+      path: ['MONGODB_URI'],
+    });
+  }
+  
+  if (data.NODE_ENV === 'production') {
+    if (!data.JWT_ACCESS_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'JWT_ACCESS_SECRET must be provided in production',
+        path: ['JWT_ACCESS_SECRET'],
+      });
+    }
+    if (!data.JWT_REFRESH_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'JWT_REFRESH_SECRET must be provided in production',
+        path: ['JWT_REFRESH_SECRET'],
+      });
+    }
+  }
 });
 
 const validateEnv = () => {
