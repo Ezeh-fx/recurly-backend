@@ -54,10 +54,11 @@ describe('Security Middleware', () => {
 
       const response = await request(app).get('/test?id=1&id=2');
 
-      // HPP prevents pollution by using the first value or last value depending on config
-      expect(response.body.query.id).toBeDefined();
-      // The important thing is that it prevents the pollution attack
-      expect(response.body.query.id).toBeTruthy();
+      // HPP prevents pollution by keeping values as an array instead of letting them overwrite
+      // This prevents attackers from using duplicate parameters to inject malicious values
+      expect(response.body.query.id).toEqual(['1', '2']);
+      // The key point is that HPP is handling the duplicate parameters
+      expect(Array.isArray(response.body.query.id)).toBe(true);
     });
   });
 

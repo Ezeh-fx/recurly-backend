@@ -4,13 +4,13 @@ import mongoose from 'mongoose';
 import logger from './logger';
 import { env } from './env';
 
-if (process.env.NODE_ENV === 'development') {
-  const dnsServers = process.env.DNS_SERVERS
-    ?.split(',')
+if (env.NODE_ENV === 'development' && env.DNS_SERVERS) {
+  const dnsServers = env.DNS_SERVERS
+    .split(',')
     .map((server) => server.trim())
     .filter(Boolean);
 
-  if (dnsServers?.length) {
+  if (dnsServers.length) {
     dns.setServers(dnsServers);
     logger.info(
       // { dnsServers },

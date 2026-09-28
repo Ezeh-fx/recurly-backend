@@ -4,6 +4,7 @@ dotenv.config();
 
 import express,{Application} from 'express';
 import compression from 'compression';
+import mongoose from 'mongoose';
 import { env } from './config/env';
 import { connectDB } from './config/database';
 import logger from './config/logger';
@@ -32,7 +33,16 @@ const startServer = async () => {
     
     // Health check endpoint
     app.get('/health', (_req, res) => {
-      res.json({ status: 'ok', environment: env.NODE_ENV });
+      const isDbConnected = mongoose.connection.readyState === 1;
+      
+      if (isDbConnected) {
+        res.json({ status: 'ok', environment: env.NODE_ENV });
+      } else {
+        res.status(503).json({ 
+          status: 'unhealthy',
+          environment: env.NODE_ENV
+        });
+      }
     });
     
     // 404 handler - must be after all routes but before error handler
@@ -48,7 +58,11 @@ const startServer = async () => {
     // Error handling middleware (must be last)
     app.use(errorHandler);
     
-    const server = app.listen(env.PORT, () => {
+    const server = app.listen(env.PORT, (error?: Error) => {
+      if (error) {
+        logger.error({ err: error }, 'Failed to start server');
+        process.exit(1);
+      }
       logger.info(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     });
     
