@@ -15,6 +15,7 @@ export interface IUser extends Document {
     apple?: { sub: string };
   };
   refreshTokenHash: string | null;
+  timezone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,18 +70,19 @@ const userSchema = new Schema<IUser>(
       select: false,
       default: null,
     },
+    timezone: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Index for quick email lookups (unique)
-userSchema.index({ email: 1 });
-
-// Index for auth provider lookups
-userSchema.index({ 'providerIds.google.sub': 1 });
-userSchema.index({ 'providerIds.apple.sub': 1 });
+// Index for auth provider lookups (unique and sparse to prevent duplicate provider IDs)
+userSchema.index({ 'providerIds.google.sub': 1 }, { unique: true, sparse: true });
+userSchema.index({ 'providerIds.apple.sub': 1 }, { unique: true, sparse: true });
 
 // Index for OTP cleanup (find expired OTPs)
 userSchema.index({ otpExpiresAt: 1 });

@@ -121,6 +121,25 @@ describe('Models', () => {
       expect(user.authProviders).toContain(AUTH_PROVIDERS.APPLE);
       expect(user.providerIds.apple?.sub).toBe('apple-sub-123');
     });
+
+    it('should store timezone', async () => {
+      const user = await User.create({
+        email: 'test@example.com',
+        passwordHash: 'plaintextpassword123',
+        timezone: 'America/New_York',
+      });
+
+      expect(user.timezone).toBe('America/New_York');
+    });
+
+    it('should allow user without timezone', async () => {
+      const user = await User.create({
+        email: 'test@example.com',
+        passwordHash: 'plaintextpassword123',
+      });
+
+      expect(user.timezone).toBeUndefined();
+    });
   });
 
   describe('Subscription Model', () => {
@@ -139,14 +158,14 @@ describe('Models', () => {
       const subscription = await Subscription.create({
         userId,
         name: 'Netflix',
-        cost: 15.99,
+        cost: 1599,
         currency: 'USD',
         billingCycle: 'monthly',
         nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
 
       expect(subscription.name).toBe('Netflix');
-      expect(subscription.cost).toBe(15.99);
+      expect(subscription.cost).toBe(1599);
       expect(subscription.status).toBe('active');
       expect(subscription.remindDaysBefore).toBe(REMINDER_CONFIG.DEFAULT_REMIND_DAYS_BEFORE);
     });
@@ -155,7 +174,7 @@ describe('Models', () => {
       await expect(
         Subscription.create({
           name: 'Netflix',
-          cost: 15.99,
+          cost: 1599,
           currency: 'USD',
           billingCycle: 'monthly',
           nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -168,7 +187,7 @@ describe('Models', () => {
         Subscription.create({
           userId,
           name: 'Netflix',
-          cost: 15.99,
+          cost: 1599,
           currency: 'USD',
           billingCycle: 'invalid' as any,
           nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -181,7 +200,7 @@ describe('Models', () => {
         Subscription.create({
           userId,
           name: 'Netflix',
-          cost: 15.99,
+          cost: 1599,
           currency: 'USD',
           billingCycle: 'monthly',
           nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -194,7 +213,7 @@ describe('Models', () => {
       const subscription = await Subscription.create({
         userId,
         name: 'Netflix',
-        cost: 15.99,
+        cost: 1599,
         currency: 'USD',
         billingCycle: 'monthly',
         nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -208,7 +227,7 @@ describe('Models', () => {
       const subscription = await Subscription.create({
         userId,
         name: 'Netflix',
-        cost: 15.99,
+        cost: 1599,
         currency: 'USD',
         billingCycle: 'monthly',
         nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -218,6 +237,45 @@ describe('Models', () => {
 
       expect(subscription.category).toBe('Entertainment');
       expect(subscription.notes).toBe('Premium plan');
+    });
+
+    it('should reject fractional cost values', async () => {
+      await expect(
+        Subscription.create({
+          userId,
+          name: 'Netflix',
+          cost: 15.99,
+          currency: 'USD',
+          billingCycle: 'monthly',
+          nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject invalid ISO currency codes', async () => {
+      await expect(
+        Subscription.create({
+          userId,
+          name: 'Netflix',
+          cost: 1599,
+          currency: 'XXX',
+          billingCycle: 'monthly',
+          nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should accept valid ISO currency codes', async () => {
+      const subscription = await Subscription.create({
+        userId,
+        name: 'Netflix',
+        cost: 1599,
+        currency: 'EUR',
+        billingCycle: 'monthly',
+        nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+
+      expect(subscription.currency).toBe('EUR');
     });
   });
 
@@ -236,7 +294,7 @@ describe('Models', () => {
       const subscription = await Subscription.create({
         userId,
         name: 'Netflix',
-        cost: 15.99,
+        cost: 1599,
         currency: 'USD',
         billingCycle: 'monthly',
         nextRenewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -261,7 +319,7 @@ describe('Models', () => {
       expect(reminderLog.status).toBe('sent');
     });
 
-    it('should enforce unique subscriptionId + reminderDate', async () => {
+    it('should enforce unique subscriptionId + renewalDate', async () => {
       const reminderDate = new Date();
       const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -277,29 +335,29 @@ describe('Models', () => {
         ReminderLog.create({
           subscriptionId,
           userId,
-          reminderDate,
-          renewalDate,
+          reminderDate: new Date(reminderDate.getTime() + 1000), // Different reminderDate
+          renewalDate, // Same renewalDate
           status: 'sent',
         })
       ).rejects.toThrow();
     });
 
-    it('should allow same subscription on different dates', async () => {
-      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    it('should allow same subscription on different renewal dates', async () => {
+      const reminderDate = new Date();
 
       await ReminderLog.create({
         subscriptionId,
         userId,
-        reminderDate: new Date('2024-01-01'),
-        renewalDate,
+        reminderDate,
+        renewalDate: new Date('2024-01-01'),
         status: 'sent',
       });
 
       await ReminderLog.create({
         subscriptionId,
         userId,
-        reminderDate: new Date('2024-02-01'),
-        renewalDate,
+        reminderDate,
+        renewalDate: new Date('2024-02-01'),
         status: 'sent',
       });
 

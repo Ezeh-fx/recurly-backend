@@ -5,6 +5,7 @@ import {
   REMINDER_CONFIG,
   BILLING_CYCLES,
   SUBSCRIPTION_STATUS,
+  ISO_CURRENCY_CODES,
 } from '../config/constants';
 
 export interface ISubscription extends Document {
@@ -38,6 +39,10 @@ const subscriptionSchema = new Schema<ISubscription>(
       type: Number,
       required: true,
       min: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Cost must be an integer (representing minor currency units)',
+      },
     },
     currency: {
       type: String,
@@ -45,6 +50,12 @@ const subscriptionSchema = new Schema<ISubscription>(
       default: 'USD',
       uppercase: true,
       trim: true,
+      validate: {
+        validator: function (value: string) {
+          return ISO_CURRENCY_CODES.includes(value as any);
+        },
+        message: 'Currency must be a valid ISO 4217 code',
+      },
     },
     billingCycle: {
       type: String,
