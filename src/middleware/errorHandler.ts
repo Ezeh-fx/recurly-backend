@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../config/logger';
 import { env } from '../config/env';
+import { HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 export class AppError extends Error {
   statusCode: number;
@@ -59,8 +60,8 @@ export const errorHandler = (
     method: req.method,
   }, 'Unhandled error');
 
-  const statusCode = 500;
-  const code = 'INTERNAL_SERVER_ERROR';
+  const statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  const code = ERROR_CODES.INTERNAL_ERROR;
   const message = env.NODE_ENV === 'development'
     ? safeMessage
     : 'An unexpected error occurred';
