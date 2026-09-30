@@ -1,6 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import { securityHeaders, corsMiddleware, hppMiddleware, mongoSanitizeMiddleware, globalRateLimiter, authRateLimiter } from '../../src/middleware/security';
+import { HTTP_STATUS, RATE_LIMIT } from '../../src/config/constants';
 
 describe('Security Middleware', () => {
   let app: express.Application;
@@ -43,7 +44,7 @@ describe('Security Middleware', () => {
         .options('/test')
         .set('Origin', 'http://localhost:8081');
 
-      expect(response.status).toBe(204);
+      expect(response.status).toBe(HTTP_STATUS.NO_CONTENT);
     });
   });
 
@@ -93,12 +94,12 @@ describe('Security Middleware', () => {
       app.use(globalRateLimiter);
       app.get('/test', (req, res) => res.json({ ok: true }));
 
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < RATE_LIMIT.GLOBAL_MAX_REQUESTS; i++) {
         await request(app).get('/test');
       }
 
       const response = await request(app).get('/test');
-      expect(response.status).toBe(429);
+      expect(response.status).toBe(HTTP_STATUS.TOO_MANY_REQUESTS);
     });
 
     it('should apply stricter auth rate limit', async () => {
@@ -107,12 +108,12 @@ describe('Security Middleware', () => {
       app.use(authRateLimiter);
       app.post('/test', (req, res) => res.json({ ok: true }));
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RATE_LIMIT.AUTH_MAX_REQUESTS; i++) {
         await request(app).post('/test');
       }
 
       const response = await request(app).post('/test');
-      expect(response.status).toBe(429);
+      expect(response.status).toBe(HTTP_STATUS.TOO_MANY_REQUESTS);
     });
   });
 });

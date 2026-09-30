@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import type { RequestHandler } from 'express';
 import { env } from '../config/env';
 import logger from '../config/logger';
+import { RATE_LIMIT, HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 // Helmet for secure HTTP headers
 export const securityHeaders: RequestHandler = helmet({
@@ -22,11 +23,11 @@ export const securityHeaders: RequestHandler = helmet({
 // Rate limiter for authentication routes (stricter)
 // Apply this specifically to /api/v1/auth/* routes in route definitions
 export const authRateLimiter: RequestHandler = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  windowMs: RATE_LIMIT.AUTH_WINDOW_MS,
+  max: RATE_LIMIT.AUTH_MAX_REQUESTS,
   message: {
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
       message: 'Too many authentication attempts, please try again later',
     },
   },
@@ -36,11 +37,11 @@ export const authRateLimiter: RequestHandler = rateLimit({
 
 // Global rate limiter (looser)
 export const globalRateLimiter: RequestHandler = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  windowMs: RATE_LIMIT.GLOBAL_WINDOW_MS,
+  max: RATE_LIMIT.GLOBAL_MAX_REQUESTS,
   message: {
     error: {
-      code: 'TOO_MANY_REQUESTS',
+      code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
       message: 'Too many requests, please try again later',
     },
   },
@@ -107,7 +108,7 @@ export const corsMiddleware: RequestHandler = (req: Request, res: Response, next
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
+    return res.sendStatus(HTTP_STATUS.NO_CONTENT);
   }
 
   next();

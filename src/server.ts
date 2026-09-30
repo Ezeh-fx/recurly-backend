@@ -11,6 +11,7 @@ import logger from './config/logger';
 import { applySecurityMiddleware } from './middleware/security';
 import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/errorHandler';
+import { HTTP_STATUS, ERROR_CODES } from './config/constants';
 
 const app:Application = express();
 
@@ -38,7 +39,7 @@ const startServer = async () => {
       if (isDbConnected) {
         res.json({ status: 'ok', environment: env.NODE_ENV });
       } else {
-        res.status(503).json({ 
+        res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
           status: 'unhealthy',
           environment: env.NODE_ENV
         });
@@ -47,9 +48,9 @@ const startServer = async () => {
     
     // 404 handler - must be after all routes but before error handler
     app.use((_req, res) => {
-      res.status(404).json({
+      res.status(HTTP_STATUS.NOT_FOUND).json({
         error: {
-          code: 'NOT_FOUND',
+          code: ERROR_CODES.NOT_FOUND,
           message: 'The requested resource does not exist'
         }
       });
