@@ -12,6 +12,7 @@ import { applySecurityMiddleware } from './middleware/security';
 import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { HTTP_STATUS, ERROR_CODES } from './config/constants';
+import { startReminderJob } from './jobs/reminderJob';
 
 const app:Application = express();
 
@@ -66,6 +67,11 @@ const startServer = async () => {
       }
       logger.info(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     });
+
+    // Start the reminder job
+    if (env.NODE_ENV !== 'test') {
+      startReminderJob();
+    }
     
     // Graceful shutdown
     process.on('SIGTERM', () => {

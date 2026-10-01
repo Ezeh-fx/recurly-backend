@@ -15,6 +15,7 @@ export interface IUser extends Document {
     apple?: { sub: string };
   };
   refreshTokenHash: string | null;
+  expoPushToken?: string;
   timezone?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +70,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       select: false,
       default: null,
+    },
+    expoPushToken: {
+      type: String,
+      trim: true,
     },
     timezone: {
       type: String,

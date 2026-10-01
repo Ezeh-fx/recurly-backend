@@ -140,6 +140,25 @@ describe('Models', () => {
 
       expect(user.timezone).toBeUndefined();
     });
+
+    it('should store expoPushToken', async () => {
+      const user = await User.create({
+        email: 'test@example.com',
+        passwordHash: 'plaintextpassword123',
+        expoPushToken: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+      });
+
+      expect(user.expoPushToken).toBe('ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]');
+    });
+
+    it('should allow user without expoPushToken', async () => {
+      const user = await User.create({
+        email: 'test@example.com',
+        passwordHash: 'plaintextpassword123',
+      });
+
+      expect(user.expoPushToken).toBeUndefined();
+    });
   });
 
   describe('Subscription Model', () => {
