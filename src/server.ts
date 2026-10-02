@@ -5,6 +5,7 @@ dotenv.config();
 import express,{Application} from 'express';
 import compression from 'compression';
 import mongoose from 'mongoose';
+import { ScheduledTask } from 'node-cron';
 import { env } from './config/env';
 import { connectDB } from './config/database';
 import logger from './config/logger';
@@ -12,8 +13,11 @@ import { applySecurityMiddleware } from './middleware/security';
 import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { HTTP_STATUS, ERROR_CODES } from './config/constants';
+import { startReminderJob } from './jobs/reminderJob';
 
 const app:Application = express();
+
+let reminderTask: ScheduledTask | null = null;
 
 const startServer = async () => {
   try {
@@ -66,10 +70,22 @@ const startServer = async () => {
       }
       logger.info(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     });
+
+    // Start the reminder job
+    if (env.NODE_ENV !== 'test') {
+      reminderTask = startReminderJob();
+    }
     
     // Graceful shutdown
     process.on('SIGTERM', () => {
       logger.info('SIGTERM signal received: closing HTTP server');
+
+      // Stop the reminder job if it's running
+      if (reminderTask) {
+        logger.info('Stopping reminder job');
+        reminderTask.stop();
+      }
+
       server.close(() => {
         logger.info('HTTP server closed');
         process.exit(0);
