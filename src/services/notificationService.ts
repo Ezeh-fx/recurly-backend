@@ -50,6 +50,7 @@ export async function sendPushNotification(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify([message]),
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
     if (!response.ok) {
@@ -63,11 +64,11 @@ export async function sendPushNotification(
     if (result.data && result.data.length > 0) {
       const pushResult = result.data[0];
       if (pushResult.status === 'ok') {
-        logger.info({ token: expoPushToken }, 'Push notification sent successfully');
+        logger.info('Push notification sent successfully');
         return { success: true };
       } else {
         logger.error(
-          { token: expoPushToken, error: pushResult.message, details: pushResult.details },
+          { error: pushResult.message, details: pushResult.details },
           'Push notification failed'
         );
         return { success: false, error: pushResult.message || 'Push notification failed' };
@@ -76,7 +77,7 @@ export async function sendPushNotification(
 
     return { success: false, error: 'Invalid response from Expo API' };
   } catch (error) {
-    logger.error({ err: error, token: expoPushToken }, 'Error sending push notification');
+    logger.error({ err: error }, 'Error sending push notification');
     return { success: false, error: 'Failed to send push notification' };
   }
 }

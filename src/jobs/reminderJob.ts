@@ -1,11 +1,18 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { Subscription } from '../models/Subscription';
 import { ReminderLog } from '../models/ReminderLog';
 import { REMINDER_CONFIG, REMINDER_STATUS, SUBSCRIPTION_STATUS } from '../config/constants';
 import { sendPushNotification } from '../services/notificationService';
 import logger from '../config/logger';
+import { ISubscription } from '../models/Subscription';
+import { IUser } from '../models/User';
+import { IReminderLog } from '../models/ReminderLog';
 
-export function startReminderJob(): any {
+interface IPopulatedSubscription extends Omit<ISubscription, 'userId'> {
+  userId: Pick<IUser, '_id' | 'expoPushToken' | 'email'>;
+}
+
+export function startReminderJob(): ScheduledTask {
   const task = cron.schedule(
     REMINDER_CONFIG.CRON_SCHEDULE,
     async () => {
@@ -24,9 +31,9 @@ export function startReminderJob(): any {
 export async function processReminders() {
   try {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     logger.info({ date: today.toISOString() }, 'Processing reminders');
 
@@ -42,7 +49,7 @@ export async function processReminders() {
     logger.info({ count: subscriptions.length }, 'Found subscriptions due for renewal');
 
     const reminderPromises = subscriptions.map(subscription =>
-      processSubscriptionReminder(subscription, today)
+      processSubscriptionReminder(subscription as unknown as IPopulatedSubscription, today)
     );
 
     await Promise.allSettled(reminderPromises);
@@ -54,7 +61,7 @@ export async function processReminders() {
 }
 
 export async function processSubscriptionReminder(
-  subscription: any,
+  subscription: IPopulatedSubscription,
   reminderDate: Date
 ): Promise<void> {
   try {
@@ -67,16 +74,58 @@ export async function processSubscriptionReminder(
       return;
     }
 
-    // Check if we've already sent a reminder for this renewal
-    const existingReminder = await ReminderLog.findOne({
-      subscriptionId: subscription._id,
-      renewalDate: subscription.nextRenewalDate,
-    });
+    // Atomically claim this reminder by creating a PENDING log entry
+    let reminderLog: IReminderLog | null = null;
+    try {
+      reminderLog = await ReminderLog.create({
+        subscriptionId: subscription._id,
+        userId: user._id,
+        reminderDate,
+        renewalDate: subscription.nextRenewalDate,
+        status: REMINDER_STATUS.PENDING,
+      });
+    } catch (error: any) {
+      // If unique constraint violation, check if we should skip or retry
+      if (error.code === 11000) {
+        const existingReminder = await ReminderLog.findOne({
+          subscriptionId: subscription._id,
+          renewalDate: subscription.nextRenewalDate,
+        });
 
-    if (existingReminder) {
-      logger.info(
+        if (existingReminder) {
+          if (existingReminder.status === REMINDER_STATUS.SENT || existingReminder.status === REMINDER_STATUS.PENDING) {
+            logger.info(
+              { subscriptionId: subscription._id, renewalDate: subscription.nextRenewalDate, existingStatus: existingReminder.status },
+              'Reminder already sent or in progress, skipping'
+            );
+            return;
+          } else if (existingReminder.status === REMINDER_STATUS.FAILED) {
+            // Allow retry by deleting the failed log and re-claiming
+            await ReminderLog.deleteOne({ _id: existingReminder._id });
+            reminderLog = await ReminderLog.create({
+              subscriptionId: subscription._id,
+              userId: user._id,
+              reminderDate,
+              renewalDate: subscription.nextRenewalDate,
+              status: REMINDER_STATUS.PENDING,
+            });
+          }
+        } else {
+          logger.warn(
+            { subscriptionId: subscription._id, renewalDate: subscription.nextRenewalDate },
+            'Unexpected unique constraint violation, skipping'
+          );
+          return;
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    if (!reminderLog) {
+      logger.warn(
         { subscriptionId: subscription._id, renewalDate: subscription.nextRenewalDate },
-        'Reminder already sent for this renewal date, skipping'
+        'Failed to claim reminder log, skipping'
       );
       return;
     }
@@ -99,15 +148,14 @@ export async function processSubscriptionReminder(
       }
     );
 
-    // Log the reminder attempt
-    await ReminderLog.create({
-      subscriptionId: subscription._id,
-      userId: user._id,
-      reminderDate,
-      renewalDate: subscription.nextRenewalDate,
-      status: result.success ? REMINDER_STATUS.SENT : REMINDER_STATUS.FAILED,
-      errorMessage: result.error,
-    });
+    // Update the claimed log with the result
+    await ReminderLog.updateOne(
+      { _id: reminderLog._id },
+      {
+        status: result.success ? REMINDER_STATUS.SENT : REMINDER_STATUS.FAILED,
+        errorMessage: result.error,
+      }
+    );
 
     if (result.success) {
       logger.info(

@@ -116,6 +116,7 @@ export const REMINDER_CONFIG = {
 
 // Reminder Status
 export const REMINDER_STATUS = {
+  PENDING: 'pending',
   SENT: 'sent',
   FAILED: 'failed',
 } as const;
