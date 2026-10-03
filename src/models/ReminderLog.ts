@@ -46,9 +46,9 @@ const reminderLogSchema = new Schema<IReminderLog>(
   }
 );
 
-// Unique compound index to prevent duplicate reminders for the same subscription and renewal date
+// Unique compound index to prevent duplicate reminders for the same subscription, renewal date, and reminder date
 reminderLogSchema.index(
-  { subscriptionId: 1, renewalDate: 1 },
+  { subscriptionId: 1, renewalDate: 1, reminderDate: 1 },
   { unique: true }
 );
 

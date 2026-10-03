@@ -1,7 +1,5 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
+import dotenv from "dotenv"
+dotenv.config()
 import express,{Application} from 'express';
 import compression from 'compression';
 import mongoose from 'mongoose';
@@ -14,10 +12,14 @@ import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { HTTP_STATUS, ERROR_CODES } from './config/constants';
 import { startReminderJob } from './jobs/reminderJob';
+import routes from './routes';
 
 const app:Application = express();
 
 let reminderTask: ScheduledTask | null = null;
+
+// Export app for testing
+export default app;
 
 const startServer = async () => {
   try {
@@ -35,6 +37,9 @@ const startServer = async () => {
     
     // Request logging
     app.use(requestLogger);
+    
+    // API routes
+    app.use('/api/v1', routes);
     
     // Health check endpoint
     app.get('/health', (_req, res) => {
@@ -98,4 +103,7 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Only start server if this file is run directly (not imported for testing)
+if (require.main === module) {
+  startServer();
+}
