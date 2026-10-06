@@ -78,7 +78,7 @@ const sanitizeObject = (obj: unknown, path: string): Record<string, unknown> => 
   return sanitized;
 };
 
-export const mongoSanitizeMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+export const mongoSanitizeMiddleware: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
   // Sanitize body
   if (req.body) {
     req.body = sanitizeObject(req.body, req.path);

@@ -32,23 +32,41 @@ export async function processReminders() {
   try {
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     logger.info({ date: today.toISOString() }, 'Processing reminders');
 
-    // Find active subscriptions with renewal dates in the reminder window
+    // Find active subscriptions where today is within the reminder window
+    // Window: from (nextRenewalDate - remindDaysBefore) to nextRenewalDate
+    // Cap at end of UTC day 30 days after today (max remindDaysBefore horizon)
+    const maxRenewalDate = new Date(Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate() + 30,
+      23, 59, 59, 999
+    ));
+
     const subscriptions = await Subscription.find({
       status: SUBSCRIPTION_STATUS.ACTIVE,
       nextRenewalDate: {
         $gte: today,
-        $lte: tomorrow,
+        $lte: maxRenewalDate,
       },
     }).populate('userId', 'expoPushToken email');
 
-    logger.info({ count: subscriptions.length }, 'Found subscriptions due for renewal');
+    logger.info({ count: subscriptions.length }, 'Found active subscriptions to check');
 
-    const reminderPromises = subscriptions.map(subscription =>
+    // Filter to only those within their reminder window
+    const subscriptionsInWindow = subscriptions.filter(subscription => {
+      const reminderStartDate = new Date(subscription.nextRenewalDate);
+      reminderStartDate.setUTCDate(reminderStartDate.getUTCDate() - subscription.remindDaysBefore);
+      // Normalize to UTC midnight to include the full first calendar day
+      reminderStartDate.setUTCHours(0, 0, 0, 0);
+      return today >= reminderStartDate && today <= subscription.nextRenewalDate;
+    });
+
+    logger.info({ count: subscriptionsInWindow.length }, 'Found subscriptions in reminder window');
+
+    const reminderPromises = subscriptionsInWindow.map(subscription =>
       processSubscriptionReminder(subscription as unknown as IPopulatedSubscription, today)
     );
 

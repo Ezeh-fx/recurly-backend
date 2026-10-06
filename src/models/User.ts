@@ -9,6 +9,9 @@ export interface IUser extends Document {
   otpCodeHash: string | null;
   otpExpiresAt: Date | null;
   otpAttempts: number;
+  otpResendCount: number;
+  otpResendWindowStartedAt: Date | null;
+  otpCreatedAt: Date | null;
   authProviders: AuthProvider[];
   providerIds: {
     google?: { sub: string };
@@ -53,6 +56,18 @@ const userSchema = new Schema<IUser>(
       default: 0,
       max: OTP_CONFIG.MAX_ATTEMPTS,
     },
+    otpResendCount: {
+      type: Number,
+      default: 0,
+    },
+    otpResendWindowStartedAt: {
+      type: Date,
+      default: null,
+    },
+    otpCreatedAt: {
+      type: Date,
+      default: null,
+    },
     authProviders: {
       type: [String],
       enum: ['email', 'google', 'apple'],
@@ -92,6 +107,10 @@ userSchema.index({ 'providerIds.apple.sub': 1 }, { unique: true, sparse: true })
 // Index for OTP cleanup (find expired OTPs)
 userSchema.index({ otpExpiresAt: 1 });
 
+// Index for resend rate limiting (using otpCreatedAt for cooldown)
+userSchema.index({ otpCreatedAt: 1 });
+userSchema.index({ otpResendWindowStartedAt: 1, otpResendCount: 1 });
+
 // Pre-save hook to hash password before saving
 userSchema.pre('save', async function () {
   const user = this as any;
@@ -108,5 +127,10 @@ userSchema.pre('save', async function () {
     throw error;
   }
 });
+
+// Password compare method
+userSchema.methods.comparePassword = async function (password: string) {
+  return bcrypt.compare(password, this.passwordHash || '');
+};
 
 export const User = mongoose.model<IUser>('User', userSchema);
