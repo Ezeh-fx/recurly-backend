@@ -111,10 +111,10 @@ describe('POST /api/v1/auth/verify-otp', () => {
     
     // Simulate OTP generation (in real app, this would be done by register service)
     const otp = '123456';
-    const bcrypt = require('bcrypt');
-    const salt = await bcrypt.genSalt(12);
-    user.otpCodeHash = await bcrypt.hash(otp, salt);
+    const crypto = require('crypto');
+    user.otpCodeHash = crypto.createHash('sha256').update(otp).digest('hex');
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    user.otpCreatedAt = new Date();
     user.otpAttempts = 0;
     await user.save();
   });
@@ -236,12 +236,13 @@ describe('POST /api/v1/auth/refresh', () => {
       { expiresIn: String(env.JWT_REFRESH_EXPIRES_IN) } as any,
     );
 
-    user.refreshTokenHash = await bcrypt.hash(refreshToken, await bcrypt.genSalt(12));
+    const crypto = require('crypto');
+    user.refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await user.save();
 
     const response = await request(app)
       .post('/api/v1/auth/refresh')
-      .set('Authorization', `Bearer ${refreshToken}`)
+      .send({ refreshToken })
       .expect(200);
 
     expect(response.body.data).toHaveProperty('accessToken');
@@ -362,6 +363,6 @@ describe('POST /api/v1/auth/refresh', () => {
       })
       .expect(401);
 
-    expect(response.body.error).toHaveProperty('code', 'INVALID_CREDENTIALS');
+    expect(response.body.error).toHaveProperty('code', 'TOKEN_INVALID');
   });
 });

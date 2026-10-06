@@ -16,57 +16,57 @@ import routes from './routes';
 
 const app:Application = express();
 
-let reminderTask: ScheduledTask | null = null;
+// Apply security middleware globally
+app.use(applySecurityMiddleware);
+
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Compression middleware
+app.use(compression());
+
+// Request logging
+app.use(requestLogger);
+
+// API routes
+app.use('/api/v1', routes);
+
+// Health check endpoint
+app.get('/health', (_req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1;
+  
+  if (isDbConnected) {
+    res.json({ status: 'ok', environment: env.NODE_ENV });
+  } else {
+    res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
+      status: 'unhealthy',
+      environment: env.NODE_ENV
+    });
+  }
+});
+
+// 404 handler - must be after all routes but before error handler
+app.use((_req, res) => {
+  res.status(HTTP_STATUS.NOT_FOUND).json({
+    error: {
+      code: ERROR_CODES.NOT_FOUND,
+      message: 'The requested resource does not exist'
+    }
+  });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Export app for testing
 export default app;
 
+let reminderTask: ScheduledTask | null = null;
+
 const startServer = async () => {
   try {
     await connectDB();
-    
-    // Apply security middleware globally
-    app.use(applySecurityMiddleware);
-    
-    // Body parsing middleware
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
-    
-    // Compression middleware
-    app.use(compression());
-    
-    // Request logging
-    app.use(requestLogger);
-    
-    // API routes
-    app.use('/api/v1', routes);
-    
-    // Health check endpoint
-    app.get('/health', (_req, res) => {
-      const isDbConnected = mongoose.connection.readyState === 1;
-      
-      if (isDbConnected) {
-        res.json({ status: 'ok', environment: env.NODE_ENV });
-      } else {
-        res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
-          status: 'unhealthy',
-          environment: env.NODE_ENV
-        });
-      }
-    });
-    
-    // 404 handler - must be after all routes but before error handler
-    app.use((_req, res) => {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        error: {
-          code: ERROR_CODES.NOT_FOUND,
-          message: 'The requested resource does not exist'
-        }
-      });
-    });
-    
-    // Error handling middleware (must be last)
-    app.use(errorHandler);
     
     const server = app.listen(env.PORT, (error?: Error) => {
       if (error) {

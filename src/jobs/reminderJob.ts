@@ -37,10 +37,19 @@ export async function processReminders() {
 
     // Find active subscriptions where today is within the reminder window
     // Window: from (nextRenewalDate - remindDaysBefore) to nextRenewalDate
+    // Cap at end of UTC day 30 days after today (max remindDaysBefore horizon)
+    const maxRenewalDate = new Date(Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate() + 30,
+      23, 59, 59, 999
+    ));
+
     const subscriptions = await Subscription.find({
       status: SUBSCRIPTION_STATUS.ACTIVE,
       nextRenewalDate: {
         $gte: today,
+        $lte: maxRenewalDate,
       },
     }).populate('userId', 'expoPushToken email');
 
@@ -50,6 +59,8 @@ export async function processReminders() {
     const subscriptionsInWindow = subscriptions.filter(subscription => {
       const reminderStartDate = new Date(subscription.nextRenewalDate);
       reminderStartDate.setUTCDate(reminderStartDate.getUTCDate() - subscription.remindDaysBefore);
+      // Normalize to UTC midnight to include the full first calendar day
+      reminderStartDate.setUTCHours(0, 0, 0, 0);
       return today >= reminderStartDate && today <= subscription.nextRenewalDate;
     });
 
@@ -97,7 +108,6 @@ export async function processSubscriptionReminder(
         const existingReminder = await ReminderLog.findOne({
           subscriptionId: subscription._id,
           renewalDate: subscription.nextRenewalDate,
-          reminderDate,
         });
 
         if (existingReminder) {

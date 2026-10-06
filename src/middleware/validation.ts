@@ -36,7 +36,11 @@ export const validate = (schema: ZodSchema) => {
         req.body = data.body;
       }
       if (data.query) {
-        req.query = data.query;
+        Object.defineProperty(req, 'query', {
+          value: data.query,
+          writable: true,
+          configurable: true,
+        });
       }
       if (data.params) {
         req.params = data.params;

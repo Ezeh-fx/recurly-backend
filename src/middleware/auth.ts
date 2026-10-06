@@ -31,11 +31,45 @@ export const authenticate = async (req: Request, _res: Response, next: NextFunct
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    // Verify token
-    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
-      userId: string;
-      email: string;
-    };
+    // Verify token with proper validation
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      issuer: 'subtrack',
+      audience: 'subtrack-api',
+      algorithms: ['HS256'],
+    }) as jwt.JwtPayload;
+
+    // Validate required claims
+    if (!decoded.userId || typeof decoded.userId !== 'string') {
+      throw new AppError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.TOKEN_INVALID,
+        'Invalid token: missing or invalid userId',
+      );
+    }
+
+    if (!decoded.email || typeof decoded.email !== 'string') {
+      throw new AppError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.TOKEN_INVALID,
+        'Invalid token: missing or invalid email',
+      );
+    }
+
+    if (decoded.tokenType !== 'access') {
+      throw new AppError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.TOKEN_INVALID,
+        'Invalid token: expected access token',
+      );
+    }
+
+    if (!decoded.jti || typeof decoded.jti !== 'string') {
+      throw new AppError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.TOKEN_INVALID,
+        'Invalid token: missing or invalid jti',
+      );
+    }
 
     // Attach user info to request
     req.user = {
@@ -45,6 +79,10 @@ export const authenticate = async (req: Request, _res: Response, next: NextFunct
 
     next();
   } catch (error) {
+    if (error instanceof AppError) {
+      return next(error);
+    }
+
     if (error instanceof jwt.TokenExpiredError) {
       return next(
         new AppError(

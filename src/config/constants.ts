@@ -87,6 +87,8 @@ export const OTP_CONFIG = {
   LENGTH: 6,
   EXPIRY_MINUTES: 10,
   MAX_ATTEMPTS: 5,
+  RESEND_COOLDOWN_SECONDS: 60, // 1 minute cooldown between resends
+  MAX_RESENDS_PER_HOUR: 3, // Maximum 3 resends per hour
 } as const;
 
 // JWT Configuration
