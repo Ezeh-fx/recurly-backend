@@ -230,13 +230,25 @@ describe('POST /api/v1/auth/refresh', () => {
       authProviders: ['email'],
     });
 
+    const crypto = require('crypto');
+    const jti = crypto.randomBytes(16).toString('hex');
+    
     const refreshToken = jwt.sign(
-      { userId: user._id.toString(), email: user.email },
+      { 
+        userId: user._id.toString(), 
+        email: user.email,
+        jti,
+        tokenType: 'refresh',
+      },
       String(env.JWT_REFRESH_SECRET),
-      { expiresIn: String(env.JWT_REFRESH_EXPIRES_IN) } as any,
+      { 
+        expiresIn: String(env.JWT_REFRESH_EXPIRES_IN),
+        issuer: 'subtrack',
+        audience: 'subtrack-api',
+        algorithm: 'HS256',
+      } as any,
     );
 
-    const crypto = require('crypto');
     user.refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await user.save();
 

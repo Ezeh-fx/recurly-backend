@@ -143,29 +143,29 @@ export const verifyOtp = async (email: string, otp: string) => {
     );
   }
 
+  // Atomically reserve an attempt by incrementing only if below MAX_ATTEMPTS
+  const updatedUser = await User.findOneAndUpdate(
+    { 
+      _id: user._id,
+      otpAttempts: { $lt: OTP_CONFIG.MAX_ATTEMPTS },
+    },
+    { $inc: { otpAttempts: 1 } },
+    { new: true }
+  ).select('+otpCodeHash');
+
+  if (!updatedUser) {
+    // Increment failed because otpAttempts >= MAX_ATTEMPTS
+    throw new AppError(
+      HTTP_STATUS.UNAUTHORIZED,
+      ERROR_CODES.OTP_TOO_MANY_ATTEMPTS,
+      'Too many failed attempts. Please request a new OTP.',
+    );
+  }
+
   // Verify OTP
-  const isOtpValid = constantTimeCompare(sha256Hash(otp), user.otpCodeHash || '');
+  const isOtpValid = constantTimeCompare(sha256Hash(otp), updatedUser.otpCodeHash || '');
   
   if (!isOtpValid) {
-    // Atomically increment otpAttempts only if below MAX_ATTEMPTS
-    const updatedUser = await User.findOneAndUpdate(
-      { 
-        _id: user._id,
-        otpAttempts: { $lt: OTP_CONFIG.MAX_ATTEMPTS },
-      },
-      { $inc: { otpAttempts: 1 } },
-      { new: true }
-    ).select('+otpCodeHash');
-
-    if (!updatedUser) {
-      // Increment failed because otpAttempts >= MAX_ATTEMPTS
-      throw new AppError(
-        HTTP_STATUS.UNAUTHORIZED,
-        ERROR_CODES.OTP_TOO_MANY_ATTEMPTS,
-        'Too many failed attempts. Please request a new OTP.',
-      );
-    }
-
     throw new AppError(
       HTTP_STATUS.UNAUTHORIZED,
       ERROR_CODES.OTP_INVALID,
@@ -259,13 +259,14 @@ export const resendOtp = async (email: string) => {
   const otpResendWindowStartedAt = resetCount ? new Date() : user.otpResendWindowStartedAt;
 
   // Update user with new OTP
-  // Reset otpAttempts and otpResendCount if hour has passed, otherwise increment
+  // Reset otpAttempts to 0 for each resend (fresh attempt limit)
+  // Reset otpResendCount if hour has passed, otherwise increment
   await User.findByIdAndUpdate(user._id, {
     otpCodeHash: otpHash,
     otpExpiresAt: otpExpiresAt,
     otpCreatedAt: otpCreatedAt,
     otpResendWindowStartedAt: otpResendWindowStartedAt,
-    otpAttempts: resetCount ? 0 : user.otpAttempts,
+    otpAttempts: 0,
     otpResendCount: resetCount ? 1 : user.otpResendCount + 1,
   });
 
@@ -452,7 +453,8 @@ export const appleAuth = async (identityToken: string) => {
     }
 
     // Validate that Apple has verified the email
-    if (!payload.email_verified) {
+  const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
+   if (!emailVerified) {
       throw new AppError(
         HTTP_STATUS.UNAUTHORIZED,
         ERROR_CODES.INVALID_CREDENTIALS,
@@ -598,6 +600,9 @@ export const refreshToken = async (refreshTokenValue: string) => {
     
     if (!constantTimeCompare(presentedHash, storedHash)) {
       // Hash mismatch - could be reuse attack or invalid token
+      // Clear the stored hash to invalidate the current token chain
+      await User.findByIdAndUpdate(user._id, { refreshTokenHash: null });
+      
       throw new AppError(
         HTTP_STATUS.UNAUTHORIZED,
         ERROR_CODES.INVALID_CREDENTIALS,
