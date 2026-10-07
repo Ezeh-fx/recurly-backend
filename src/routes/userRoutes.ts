@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { authRateLimiter } from '../middleware/security';
 import {
   updateProfileSchema,
   changePasswordSchema,
@@ -27,12 +28,12 @@ router.get('/profile', getUserProfileController);
 router.patch('/profile', validate(updateProfileSchema), updateProfileController);
 
 // Change password
-router.post('/change-password', validate(changePasswordSchema), changePasswordController);
+router.post('/change-password', authRateLimiter, validate(changePasswordSchema), changePasswordController);
 
 // Link Google account
-router.post('/link-google', validate(linkGoogleSchema), linkGoogleController);
+router.post('/link-google', authRateLimiter, validate(linkGoogleSchema), linkGoogleController);
 
 // Link Apple account
-router.post('/link-apple', validate(linkAppleSchema), linkAppleController);
+router.post('/link-apple', authRateLimiter, validate(linkAppleSchema), linkAppleController);
 
 export default router;

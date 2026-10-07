@@ -81,7 +81,7 @@ export const updateUserProfile = async (
     user.isEmailVerified = false;
     // TODO: Generate and send new OTP for email verification
     logger.info(
-      { userId: user._id, newEmail: updates.email },
+      { userId: user._id },
       "Email changed, re-verification required",
     );
   }
@@ -155,24 +155,6 @@ export const changePassword = async (
   };
 };
 
-// Delete user account
-export const deleteUserAccount = async (userId: string) => {
-  const user = await User.findByIdAndDelete(userId);
-
-  if (!user) {
-    throw new AppError(
-      HTTP_STATUS.NOT_FOUND,
-      ERROR_CODES.NOT_FOUND,
-      "User not found",
-    );
-  }
-
-  logger.info({ userId: user._id }, "User account deleted successfully");
-  return {
-    message: "Account deleted successfully",
-  };
-};
-
 // Link Google account
 export const linkGoogleAccount = async (userId: string, idToken: string) => {
   try {
@@ -236,22 +218,17 @@ export const linkGoogleAccount = async (userId: string, idToken: string) => {
       );
     }
 
-    // Security check: Only allow linking if Google is authoritative for the email
-    // or if the email matches the user's current email
-    const isGmail =
-      email.endsWith("@gmail.com") || email.endsWith("@googlemail.com");
+    // Security check: Only allow linking if the email matches the user's current email
+    // Domain ownership alone is not sufficient for authorization
     const isSameEmail = email === user.email.toLowerCase();
 
-    if (!isGmail && !isSameEmail) {
+    if (!isSameEmail) {
       throw new AppError(
         HTTP_STATUS.FORBIDDEN,
         ERROR_CODES.FORBIDDEN,
-        "Cannot link Google account: email domain is not authoritative. Please use the same email address.",
+        "Cannot link Google account: email address does not match your account email. Please use the same email address.",
       );
     }
-
-    // If emails match, just link the provider
-    // If it's a Gmail account with different email, still allow linking (Google is authoritative)
 
     // Link Google account
     user.authProviders.push(AUTH_PROVIDERS.GOOGLE);
@@ -279,6 +256,15 @@ export const linkGoogleAccount = async (userId: string, idToken: string) => {
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
+    }
+
+    // Handle MongoDB duplicate key error (race condition on provider linking)
+    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        ERROR_CODES.CONFLICT,
+        'This Google account is already linked to another account',
+      );
     }
 
     logger.error({ err: error }, "Google account linking failed");
@@ -356,19 +342,15 @@ export const linkAppleAccount = async (
       );
     }
 
-    // Security check: Apple is authoritative for iCloud email addresses (@icloud.com, @me.com, @mac.com)
-    // For other domains, require email match
-    const isIcloudEmail =
-      email.endsWith("@icloud.com") ||
-      email.endsWith("@me.com") ||
-      email.endsWith("@mac.com");
+    // Security check: Only allow linking if the email matches the user's current email
+    // Domain ownership alone is not sufficient for authorization
     const isSameEmail = email === user.email.toLowerCase();
 
-    if (!isIcloudEmail && !isSameEmail) {
+    if (!isSameEmail) {
       throw new AppError(
         HTTP_STATUS.FORBIDDEN,
         ERROR_CODES.FORBIDDEN,
-        "Cannot link Apple account: email domain is not authoritative. Please use the same email address.",
+        "Cannot link Apple account: email address does not match your account email. Please use the same email address.",
       );
     }
 
@@ -398,6 +380,15 @@ export const linkAppleAccount = async (
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
+    }
+
+    // Handle MongoDB duplicate key error (race condition on provider linking)
+    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        ERROR_CODES.CONFLICT,
+        'This Apple account is already linked to another account',
+      );
     }
 
     logger.error({ err: error }, "Apple account linking failed");

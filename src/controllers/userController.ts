@@ -5,7 +5,6 @@ import {
   changePassword,
   linkGoogleAccount,
   linkAppleAccount,
-  deleteUserAccount,
 } from '../services/userService';
 import { HTTP_STATUS } from '../config/constants';
 
@@ -110,25 +109,6 @@ export const linkAppleController = async (
     res.status(HTTP_STATUS.OK).json({
       status: 'success',
       data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Delete user account
-export const deleteUserAccountController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.user!.id;
-    const result = await deleteUserAccount(userId);
-
-    res.status(HTTP_STATUS.OK).json({
-      status: 'success',
-     data: result,
     });
   } catch (error) {
     next(error);
