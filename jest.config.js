@@ -18,6 +18,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(jose))',
+    'node_modules/(?!(jose|google-auth-library))',
   ],
 };
