@@ -24,6 +24,8 @@ consumes this API.
 - Zod for input validation
 - node-cron for the daily renewal-reminder job
 - Expo Push Notifications API for reminders
+- Resend (primary) and Nodemailer with Gmail (fallback) for email sending (OTP verification)
+- EJS for email templates
 - helmet, express-rate-limit, hpp, express-mongo-sanitize for
   security middleware
 - Jest + Supertest for testing
