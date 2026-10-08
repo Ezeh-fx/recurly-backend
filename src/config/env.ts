@@ -18,7 +18,12 @@ const envSchema = z.object({
   APPLE_CLIENT_ID: z.string().optional(),
   
   // Email
-  EMAIL_PROVIDER_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  GMAIL_USER: z.string().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
   
   // Expo Push Notifications
@@ -54,6 +59,17 @@ const envSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: 'JWT_REFRESH_SECRET must be provided in production',
         path: ['JWT_REFRESH_SECRET'],
+      });
+    }
+    const hasResend = !!data.RESEND_API_KEY;
+    const hasGmailAppPassword = !!data.GMAIL_USER && !!data.GMAIL_APP_PASSWORD;
+    const hasGmailOAuth = !!data.GMAIL_USER && !!data.GOOGLE_OAUTH_CLIENT_ID && !!data.GOOGLE_OAUTH_CLIENT_SECRET && !!data.GOOGLE_OAUTH_REFRESH_TOKEN;
+    const hasGmail = hasGmailAppPassword || hasGmailOAuth;
+    if (!hasResend && !hasGmail) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'At least one email provider (RESEND_API_KEY or GMAIL with OAuth/app password) must be provided in production',
+        path: ['RESEND_API_KEY'],
       });
     }
   }

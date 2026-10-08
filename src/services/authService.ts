@@ -7,6 +7,7 @@ import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import { HTTP_STATUS, ERROR_CODES, OTP_CONFIG, AUTH_PROVIDERS, BCRYPT_CONFIG } from '../config/constants';
 import logger from '../config/logger';
+import { sendOtpEmail } from './emailService';
 
 // Import jose for Apple auth (ESM module)
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -103,13 +104,18 @@ export const register = async (email: string, password: string) => {
     otpAttempts: 0,
   });
 
-  // TODO: Send OTP email (implement email service)
-  logger.info({ userId: user._id }, 'OTP generated for email verification');
+  // Send OTP email
+  await sendOtpEmail({
+    email: user.email,
+    otp,
+    otpExpiresAt,
+  });
+
+  logger.info({ userId: user._id }, 'OTP generated and email sent for verification');
 
   return {
     message: 'Registration successful. Please check your email for OTP verification.',
-    otpExpiresAt: user.otpExpiresAt,
-    otp, // For testing purposes; remove in production
+    otpExpiresAt,
   };
 };
 
@@ -270,8 +276,14 @@ export const resendOtp = async (email: string) => {
     otpResendCount: resetCount ? 1 : user.otpResendCount + 1,
   });
 
-  // TODO: Send OTP email (implement email service)
-  logger.info({ userId: user._id }, 'New OTP generated for email verification');
+  // Send OTP email
+  await sendOtpEmail({
+    email: user.email,
+    otp,
+    otpExpiresAt,
+  });
+
+  logger.info({ userId: user._id }, 'New OTP generated and email sent');
 
   return {
     message: 'New OTP sent successfully',

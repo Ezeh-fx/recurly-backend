@@ -13,6 +13,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { HTTP_STATUS, ERROR_CODES } from './config/constants';
 import { startReminderJob } from './jobs/reminderJob';
 import routes from './routes';
+import { verifyGmailConnection } from "./services/emailService";
 
 const app:Application = express();
 
@@ -80,6 +81,10 @@ const startServer = async () => {
     if (env.NODE_ENV !== 'test') {
       reminderTask = startReminderJob();
     }
+
+    if (env.NODE_ENV === "development") {
+  await verifyGmailConnection();
+}
     
     // Graceful shutdown
     process.on('SIGTERM', () => {

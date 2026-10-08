@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email - <%= appName %></title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .email-wrapper {
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      color: #ffffff;
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .greeting {
+      font-size: 18px;
+      color: #333333;
+      margin-bottom: 20px;
+    }
+    .message {
+      color: #666666;
+      margin-bottom: 30px;
+    }
+    .otp-container {
+      background-color: #f8f9fa;
+      border: 2px dashed #667eea;
+      border-radius: 8px;
+      padding: 25px;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .otp-code {
+      font-size: 36px;
+      font-weight: 700;
+      color: #667eea;
+      letter-spacing: 8px;
+      margin: 0;
+    }
+    .expiry {
+      color: #999999;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+    .warning {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 25px 0;
+      font-size: 14px;
+      color: #856404;
+    }
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px 30px;
+      text-align: center;
+      font-size: 13px;
+      color: #999999;
+    }
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="email-wrapper">
+      <div class="header">
+        <h1><%= appName %></h1>
+      </div>
+      <div class="content">
+        <p class="greeting">Hello,</p>
+        <p class="message">
+          Thank you for signing up for <%= appName %>. To complete your registration, 
+          please use the following verification code:
+        </p>
+        
+        <div class="otp-container">
+          <p class="otp-code"><%= otp %></p>
+          <p class="expiry">This code will expire in <%= expiryMinutes %> minutes</p>
+        </div>
+        
+        <div class="warning">
+          <strong>Security Notice:</strong> Never share this code with anyone. 
+          If you didn't request this code, please ignore this email.
+        </div>
+        
+        <p class="message">
+          If you have any questions or need assistance, please contact our support team at 
+          <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</p>
+        <p>
+          This is an automated email. Please do not reply to this message.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
